@@ -27,7 +27,7 @@ def get_ai_response(user_message):
         "Content-Type": "application/json"
     }
     data = {
-        "model": "meta-llama/llama-3.1-8b-instruct:free",
+        "model": "openrouter/free",
         "messages": [
             {"role": "system", "content": mode_prompts[current_mode]},
             {"role": "user", "content": user_message}
