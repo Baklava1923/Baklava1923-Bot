@@ -39,7 +39,11 @@ def get_ai_response(user_message):
         json=data
     )
     result = response.json()
-    return result["choices"][0]["message"]["content"]
+    if "choices" in result:
+        return result["choices"][0]["message"]["content"]
+    else:
+        print(f"API HATASI: {result}")
+        return f"Bir hata oluştu: {result.get('error', {}).get('message', 'Bilinmeyen hata')}"
 
 @bot.event
 async def on_ready():
