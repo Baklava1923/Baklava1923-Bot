@@ -121,9 +121,18 @@ async def on_message(message):
     if is_mentioned or is_reply_to_bot:
         if not message.content.startswith("!"):
             clean_content = message.content.replace(f"<@{bot.user.id}>", "").strip()
+            has_attachment = len(message.attachments) > 0
+
             if clean_content:
                 async with message.channel.typing():
                     cevap = get_ai_response(clean_content)
+                    await message.reply(cevap)
+            elif has_attachment:
+                async with message.channel.typing():
+                    cevap = get_ai_response(
+                        "Kullanıcı sana bir resim veya gif gönderdi ama yazı yazmadı. "
+                        "Buna kısa, doğal bir tepki ver ve görseli gerçekten göremediğini de nazikçe belirt."
+                    )
                     await message.reply(cevap)
 
 keep_alive()
