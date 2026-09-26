@@ -432,7 +432,7 @@ async def soru(ctx, *, soru_metni: str = None):
     cevap = random.choice(cevaplar)
 
     embed = discord.Embed(
-        title="Yarrak sorular",
+        title="Sihirli Paklava",
         color=discord.Color.purple()
     )
 
@@ -475,6 +475,61 @@ async def oneri(ctx, *, oneri_metni: str = None):
 
     except discord.Forbidden:
         await ctx.send("Öneri iletilemedi, bir hata oluştu.")
+
+
+@bot.command(name="yardım")
+async def yardim(ctx):
+
+    embed = discord.Embed(
+        title="🤖 Bot Komutları",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(
+        name="!merhaba",
+        value="Botun çalıştığını test et",
+        inline=False
+    )
+
+    embed.add_field(
+        name="!mod <isim>",
+        value="Botun konuşma tarzını değiştir (normal, komik, ciddi, korkutucu, tartışmacı)",
+        inline=False
+    )
+
+    embed.add_field(
+        name="!soru <soru metni>",
+        value="Sihirli Paklava'ya bir soru sor",
+        inline=False
+    )
+
+    embed.add_field(
+        name="!aktiflik",
+        value="Sunucudaki en aktif üyeleri gör (7/30/60/90 gün)",
+        inline=False
+    )
+
+    embed.add_field(
+        name="!öneri <öneri metni>",
+        value="Bota bir öneri gönder",
+        inline=False
+    )
+
+    embed.add_field(
+        name="!yardım",
+        value="Bu mesajı gösterir",
+        inline=False
+    )
+
+    embed.add_field(
+        name="💬 Nasıl Konuşulur",
+        value="Beni etiketleyerek (@bot_adı) veya mesajıma yanıt vererek benimle konuşabilirsin!",
+        inline=False
+    )
+
+    embed.set_footer(text="Not: Tüm komutlar hem ! hem de B! ile de çalışır")
+
+    await ctx.send(embed=embed)
 
 
 @bot.event
