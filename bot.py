@@ -293,4 +293,3 @@ async def on_message(message):
 
 keep_alive()
 bot.run(os.environ["DISCORD_TOKEN"])
-    
