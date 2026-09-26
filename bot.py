@@ -12,7 +12,8 @@ intents.message_content = True
 intents.presences = True
 intents.members = True
 
-bot = commands.Bot(command_prefix=("!", "B!"), intents=intents)
+bot = commands.Bot(command_prefix=("!", "B!", "b!"), intents=intents, case_insensitive=True)
+bot.remove_command('help')
 
 OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
 OWNER_ID = 1358430002508726276
@@ -477,8 +478,8 @@ async def oneri(ctx, *, oneri_metni: str = None):
         await ctx.send("Öneri iletilemedi, bir hata oluştu.")
 
 
-@bot.command(name="yardım")
-async def yardim(ctx):
+@bot.command(name="help", aliases=["yardim", "yardım", "Yardım", "YARDIM"])
+async def help_command(ctx):
 
     embed = discord.Embed(
         title="🤖 Bot Komutları",
@@ -516,7 +517,7 @@ async def yardim(ctx):
     )
 
     embed.add_field(
-        name="!yardım",
+        name="!help",
         value="Bu mesajı gösterir",
         inline=False
     )
