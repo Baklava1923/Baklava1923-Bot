@@ -248,8 +248,8 @@ async def oneri(ctx, *, oneri_metni: str = None):
     except discord.Forbidden:
         await ctx.send("Öneri iletilemedi, bir hata oluştu.")
 
-@bot.command(name="help", aliases=["yardim", "yardım", "Yardım", "YARDIM"])
-async def help_command(ctx):
+@bot.command(name="yardim", aliases=["help", "yardım", "Yardım", "YARDIM"])
+async def yardim_command(ctx):
     embed = discord.Embed(title="📖 Piçlik Komutları", color=discord.Color.green())
     embed.add_field(name="!merhaba", value="Botun çalıştığını test et", inline=False)
     embed.add_field(name="!mod <isim>", value="Botun konuşma tarzını değiştir (normal, komik, ciddi, korkutucu, tartışmacı)", inline=False)
