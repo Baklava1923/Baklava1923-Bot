@@ -15,6 +15,7 @@ intents.members = True
 bot = commands.Bot(command_prefix=("!", "B!"), intents=intents)
 
 OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
+OWNER_ID = 1358430002508726276
 
 current_mode = "normal"
 
@@ -321,9 +322,16 @@ class ActivityView(discord.ui.View):
         label="60 Gün",
         style=discord.ButtonStyle.primary
     )
-    async def sixty_days(self, button, interaction):
+    async def sixty_days(self, interaction, button):
 
-        pass
+        await interaction.response.defer()
+
+        await show_activity(
+            interaction.channel,
+            60
+        )
+
+        await interaction.message.delete()
 
     @discord.ui.button(
         label="90 Gün",
@@ -424,7 +432,7 @@ async def soru(ctx, *, soru_metni: str = None):
     cevap = random.choice(cevaplar)
 
     embed = discord.Embed(
-        title="Sihirli Paklava",
+        title="Yarrak sorular",
         color=discord.Color.purple()
     )
 
@@ -441,6 +449,32 @@ async def soru(ctx, *, soru_metni: str = None):
     )
 
     await ctx.send(embed=embed)
+
+
+@bot.command(name="öneri")
+async def oneri(ctx, *, oneri_metni: str = None):
+
+    if oneri_metni is None:
+        await ctx.send("Bir öneri yazmalısın! Örnek: `!öneri bence şu eklensin`")
+        return
+
+    try:
+        owner = await bot.fetch_user(OWNER_ID)
+
+        embed = discord.Embed(
+            title="📩 Yeni Öneri",
+            description=oneri_metni,
+            color=discord.Color.gold()
+        )
+
+        embed.add_field(name="Gönderen", value=f"{ctx.author} ({ctx.author.id})", inline=False)
+        embed.add_field(name="Sunucu", value=ctx.guild.name if ctx.guild else "DM", inline=False)
+
+        await owner.send(embed=embed)
+        await ctx.send("Öneriniz iletildi, teşekkürler! ✅")
+
+    except discord.Forbidden:
+        await ctx.send("Öneri iletilemedi, bir hata oluştu.")
 
 
 @bot.event
