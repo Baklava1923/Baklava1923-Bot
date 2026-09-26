@@ -482,8 +482,8 @@ async def oneri(ctx, *, oneri_metni: str = None):
 async def help_command(ctx):
 
     embed = discord.Embed(
-        title="🤖 Bot Komutları",
-        color=discord.Color.blue()
+        title="📖 Piçlik Komutları",
+        color=discord.Color.green()
     )
 
     embed.add_field(
@@ -523,12 +523,15 @@ async def help_command(ctx):
     )
 
     embed.add_field(
-        name="💬 Nasıl Konuşulur",
-        value="Beni etiketleyerek (@bot_adı) veya mesajıma yanıt vererek benimle konuşabilirsin!",
+        name="Sohbet",
+        value="Beni etiketleyerek veya mesajıma reply atarak benimle sohbet edebilirsin",
         inline=False
     )
 
-    embed.set_footer(text="Not: Tüm komutlar hem ! hem de B! ile de çalışır")
+    if ctx.guild and ctx.guild.icon:
+        embed.set_author(name=bot.user.name, icon_url=bot.user.display_avatar.url)
+    else:
+        embed.set_author(name=bot.user.name, icon_url=bot.user.display_avatar.url)
 
     await ctx.send(embed=embed)
 
