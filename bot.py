@@ -12,7 +12,12 @@ intents.message_content = True
 intents.presences = True
 intents.members = True
 
-bot = commands.Bot(command_prefix=("!", "B!", "b!"), intents=intents, case_insensitive=True)
+bot = commands.Bot(
+    command_prefix=("!", "B!", "b!"),
+    intents=intents,
+    case_insensitive=True
+)
+
 bot.remove_command("help")
 
 OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
@@ -58,6 +63,8 @@ def get_ai_response(user_message):
 
     return f"Bir hata oluştu: {result.get('error', {}).get('message', 'Bilinmeyen hata')}"
 
+
+# AKTİFLİK SİSTEMİ
 
 db = sqlite3.connect("aktiflik.db", check_same_thread=False)
 cursor = db.cursor()
@@ -257,37 +264,25 @@ class ActivityView(discord.ui.View):
 
         return True
 
-    @discord.ui.button(
-        label="7 Gün",
-        style=discord.ButtonStyle.primary
-    )
+    @discord.ui.button(label="7 Gün", style=discord.ButtonStyle.primary)
     async def seven_days(self, interaction, button):
         await interaction.response.defer()
         await show_activity(interaction.channel, 7)
         await interaction.message.delete()
 
-    @discord.ui.button(
-        label="30 Gün",
-        style=discord.ButtonStyle.primary
-    )
+    @discord.ui.button(label="30 Gün", style=discord.ButtonStyle.primary)
     async def thirty_days(self, interaction, button):
         await interaction.response.defer()
         await show_activity(interaction.channel, 30)
         await interaction.message.delete()
 
-    @discord.ui.button(
-        label="60 Gün",
-        style=discord.ButtonStyle.primary
-    )
+    @discord.ui.button(label="60 Gün", style=discord.ButtonStyle.primary)
     async def sixty_days(self, interaction, button):
         await interaction.response.defer()
         await show_activity(interaction.channel, 60)
         await interaction.message.delete()
 
-    @discord.ui.button(
-        label="90 Gün",
-        style=discord.ButtonStyle.primary
-    )
+    @discord.ui.button(label="90 Gün", style=discord.ButtonStyle.primary)
     async def ninety_days(self, interaction, button):
         await interaction.response.defer()
         await show_activity(interaction.channel, 90)
@@ -298,10 +293,7 @@ class ActivityView(discord.ui.View):
 async def aktiflik(ctx):
     embed = discord.Embed(
         title="Aktiflik Süresi",
-        description=(
-            "Hangi zaman aralığındaki aktifliği görmek istiyorsun\n\n"
-            "Aşağıdan bir süre seç"
-        ),
+        description="Hangi zaman aralığındaki aktifliği görmek istiyorsun\n\nAşağıdan bir süre seç",
         color=discord.Color.blue()
     )
 
@@ -312,6 +304,8 @@ async def aktiflik(ctx):
         view=view
     )
 
+
+# NORMAL KOMUTLAR
 
 @bot.command()
 async def merhaba(ctx):
@@ -326,11 +320,7 @@ async def mod(ctx, secim: str):
 
     if secim in mode_prompts:
         current_mode = secim
-
-        await ctx.send(
-            f"Mod değiştirildi: **{secim}**"
-        )
-
+        await ctx.send(f"Mod değiştirildi: **{secim}**")
     else:
         await ctx.send(
             "Geçerli modlar: normal, komik, ciddi, korkutucu, tartışmacı"
@@ -417,15 +407,10 @@ async def oneri(ctx, *, oneri_metni: str = None):
         )
 
         await owner.send(embed=embed)
-
-        await ctx.send(
-            "Öneriniz iletildi, teşekkürler! ✅"
-        )
+        await ctx.send("Öneriniz iletildi, teşekkürler! ✅")
 
     except discord.Forbidden:
-        await ctx.send(
-            "Öneri iletilemedi, bir hata oluştu."
-        )
+        await ctx.send("Öneri iletilemedi, bir hata oluştu.")
 
 
 # TAŞ KAĞIT MAKAS
@@ -500,35 +485,17 @@ class TKMGameView(discord.ui.View):
 
             self.stop()
 
-    @discord.ui.button(
-        label="Taş",
-        style=discord.ButtonStyle.primary
-    )
+    @discord.ui.button(label="Taş", style=discord.ButtonStyle.primary)
     async def rock(self, interaction, button):
-        await self.choose(
-            interaction,
-            "Taş"
-        )
+        await self.choose(interaction, "Taş")
 
-    @discord.ui.button(
-        label="Kağıt",
-        style=discord.ButtonStyle.success
-    )
+    @discord.ui.button(label="Kağıt", style=discord.ButtonStyle.success)
     async def paper(self, interaction, button):
-        await self.choose(
-            interaction,
-            "Kağıt"
-        )
+        await self.choose(interaction, "Kağıt")
 
-    @discord.ui.button(
-        label="Makas",
-        style=discord.ButtonStyle.danger
-    )
+    @discord.ui.button(label="Makas", style=discord.ButtonStyle.danger)
     async def scissors(self, interaction, button):
-        await self.choose(
-            interaction,
-            "Makas"
-        )
+        await self.choose(interaction, "Makas")
 
 
 class TKMInviteView(discord.ui.View):
@@ -560,8 +527,7 @@ class TKMInviteView(discord.ui.View):
 
         await interaction.response.edit_message(
             content=(
-                f"{self.challenger.mention} ve "
-                f"{self.opponent.mention}\n\n"
+                f"{self.challenger.mention} ve {self.opponent.mention}\n\n"
                 "İkiniz de aşağıdan seçiminizi yapın"
             ),
             view=game_view
@@ -598,15 +564,11 @@ async def tkm(ctx, oyuncu: discord.Member = None):
         return
 
     if oyuncu.bot:
-        await ctx.send(
-            "Botlarla taş kağıt makas oynayamazsın"
-        )
+        await ctx.send("Botlarla taş kağıt makas oynayamazsın")
         return
 
     if oyuncu.id == ctx.author.id:
-        await ctx.send(
-            "Kendinle taş kağıt makas oynayamazsın"
-        )
+        await ctx.send("Kendinle taş kağıt makas oynayamazsın")
         return
 
     view = TKMInviteView(
@@ -622,9 +584,11 @@ async def tkm(ctx, oyuncu: discord.Member = None):
     )
 
 
+# YARDIM
+
 @bot.command(
     name="yardim",
-    aliases=["help", "yardım", "Yardım", "YARDIM"]
+    aliases=["help", "yardım"]
 )
 async def yardim_command(ctx):
     embed = discord.Embed(
@@ -687,6 +651,8 @@ async def yardim_command(ctx):
 
     await ctx.send(embed=embed)
 
+
+# AI SOHBETİ
 
 @bot.event
 async def on_message(message):
