@@ -336,10 +336,10 @@ async def soru(ctx, *, soru_metni: str = None):
         return
 
     cevaplar = [
-        "Kesinlikle evet.",
-        "Görünüşe göre öyle.",
-        "Şüphesiz.",
-        "Evet, kesin.",
+        "he doğru nerden bildin oic.",
+        "abov.",
+        "cevap veremem purnaciyim.",
+        "he kesin.",
         "Güvenilir kaynaklara göre evet.",
         "İşaretler evet diyor.",
         "Muhtemelen.",
