@@ -584,122 +584,162 @@ async def tkm(ctx, oyuncu: discord.Member = None):
     )
 
 
-# YARDIM
+# 1vs1 DÜELLO SİSTEMİ
 
-@bot.command(
-    name="yardim",
-    aliases=["help", "yardım"]
-)
-async def yardim_command(ctx):
-    embed = discord.Embed(
-        title="📖 Piçlik Komutları",
-        color=discord.Color.green()
-    )
+DUEL_MAX_HP = 500
+DUEL_ULTRA_COST = 100
 
-    embed.add_field(
-        name="!merhaba",
-        value="Botun çalıştığını test et",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!mod <isim>",
-        value="Botun konuşma tarzını değiştir (normal, komik, ciddi, korkutucu, tartışmacı)",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!soru <soru metni>",
-        value="Sihirli Paklava'ya bir soru sor",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!aktiflik",
-        value="Sunucudaki en aktif üyeleri gör (7/30/60/90 gün)",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!öneri <öneri metni>",
-        value="Bota bir öneri gönder",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!tkm @oyuncu",
-        value="Bir oyuncuya Taş Kağıt Makas düellosu gönder",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!help",
-        value="Bu mesajı gösterir",
-        inline=False
-    )
-
-    embed.add_field(
-        name="Sohbet",
-        value="Beni etiketleyerek veya mesajıma reply atarak benimle sohbet edebilirsin",
-        inline=False
-    )
-
-    embed.set_author(
-        name=bot.user.name,
-        icon_url=bot.user.display_avatar.url
-    )
-
-    await ctx.send(embed=embed)
+active_duels = {}  # channel_id -> DuelGameView
 
 
-# AI SOHBETİ
+def make_hp_bar(hp, max_hp=DUEL_MAX_HP):
+    filled = round((hp / max_hp) * 10)
+    filled = max(0, min(10, filled))
+    return "🟩" * filled + "⬛" * (10 - filled)
 
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
 
-    await bot.process_commands(message)
+class DuelGameView(discord.ui.View):
+    def __init__(self, player1, player2, channel_id):
+        super().__init__(timeout=300)
 
-    is_mentioned = bot.user in message.mentions
+        self.channel_id = channel_id
+        self.order = [player1.id, player2.id]
+        self.turn_index = 0
+        self.players = {
+            player1.id: {"member": player1, "hp": DUEL_MAX_HP, "power": 0, "shield": False},
+            player2.id: {"member": player2, "hp": DUEL_MAX_HP, "power": 0, "shield": False},
+        }
 
-    is_reply_to_bot = False
+    @property
+    def current_player_id(self):
+        return self.order[self.turn_index]
 
-    if message.reference:
-        try:
-            replied_msg = await message.channel.fetch_message(
-                message.reference.message_id
+    def other_id(self, user_id):
+        return self.order[1] if user_id == self.order[0] else self.order[0]
+
+    async def interaction_check(self, interaction):
+        if interaction.user.id not in self.players:
+            await interaction.response.send_message(
+                "Bu düelloda değilsin", ephemeral=True
+            )
+            return False
+
+        if interaction.user.id != self.current_player_id:
+            await interaction.response.send_message(
+                "Sıra sende değil", ephemeral=True
+            )
+            return False
+
+        return True
+
+    def build_embed(self, log_line=""):
+        embed = discord.Embed(
+            title="⚔️ 1vs1 Düello",
+            color=discord.Color.red()
+        )
+
+        if log_line:
+            embed.description = log_line
+
+        for user_id in self.order:
+            p = self.players[user_id]
+            value = (
+                f"❤️ {p['hp']}/{DUEL_MAX_HP}\n"
+                f"{make_hp_bar(p['hp'])}\n"
+                f"⚡ Güç: {p['power']}/{DUEL_ULTRA_COST}"
             )
 
-            if replied_msg.author == bot.user:
-                is_reply_to_bot = True
+            if p["shield"]:
+                value += "\n🧱 Çin Seddi aktif"
 
-        except:
-            pass
+            embed.add_field(
+                name=p["member"].display_name,
+                value=value,
+                inline=True
+            )
 
-    if is_mentioned or is_reply_to_bot:
-        if not message.content.startswith("!"):
-            clean_content = message.content.replace(
-                f"<@{bot.user.id}>",
-                ""
-            ).strip()
+        embed.set_footer(
+            text=f"Sıra: {self.players[self.current_player_id]['member'].display_name}"
+        )
 
-            has_attachment = len(message.attachments) > 0
+        return embed
 
-            if clean_content:
-                async with message.channel.typing():
-                    cevap = get_ai_response(clean_content)
-                    await message.reply(cevap)
+    async def end_duel(self, interaction, winner_id, loser_id, reason):
+        active_duels.pop(self.channel_id, None)
 
-            elif has_attachment:
-                async with message.channel.typing():
-                    cevap = get_ai_response(
-                        "Kullanıcı sana bir resim veya gif gönderdi ama yazı yazmadı. "
-                        "Buna kısa doğal bir tepki ver ve görseli gerçekten göremediğini belirt."
-                    )
+        for item in self.children:
+            item.disabled = True
 
-                    await message.reply(cevap)
+        embed = discord.Embed(
+            title="🏆 Düello Bitti",
+            description=reason,
+            color=discord.Color.gold()
+        )
 
+        embed.add_field(
+            name="Kazanan",
+            value=self.players[winner_id]["member"].mention
+        )
 
-keep_alive()
-bot.run(os.environ["DISCORD_TOKEN"])
+        await interaction.response.edit_message(embed=embed, view=self)
+        self.stop()
+
+    async def resolve(self, interaction, action):
+        actor_id = interaction.user.id
+        target_id = self.other_id(actor_id)
+        actor = self.players[actor_id]
+        target = self.players[target_id]
+        log = ""
+
+        if action == "terlik":
+            dmg = random.randint(50, 99)
+            blocked = ""
+
+            if target["shield"]:
+                dmg = round(dmg * 0.4)
+                target["shield"] = False
+                blocked = " (Çin Seddi hasarı azalttı!)"
+
+            target["hp"] = max(0, target["hp"] - dmg)
+            log = (
+                f"👡 {actor['member'].mention}, {target['member'].mention}'e "
+                f"anne terliğiyle **{dmg}** hasar verdi!{blocked}"
+            )
+
+        elif action == "topla":
+            gain = random.randint(30, 60)
+            actor["power"] = min(DUEL_ULTRA_COST, actor["power"] + gain)
+            log = f"🔋 {actor['member'].mention} güç topladı! (+{gain} güç)"
+
+        elif action == "ultra":
+            if actor["power"] < DUEL_ULTRA_COST:
+                log = f"❌ {actor['member'].mention}, yeterli gücün yok, git topla."
+            else:
+                dmg = random.randint(200, 300)
+                blocked = ""
+
+                if target["shield"]:
+                    dmg = round(dmg * 0.4)
+                    target["shield"] = False
+                    blocked = " (Çin Seddi hasarı azalttı!)"
+
+                actor["power"] = 0
+                target["hp"] = max(0, target["hp"] - dmg)
+                log = (
+                    f"💀 {actor['member'].mention}, ULTRA PEZEVENG PİÇİ ile "
+                    f"{target['member'].mention}'e **{dmg}** hasar verdi!{blocked}"
+                )
+
+        elif action == "can":
+            heal = random.randint(30, 100)
+            actor["hp"] = min(DUEL_MAX_HP, actor["hp"] + heal)
+            log = f"💗 {actor['member'].mention}, purnacı kalbiyle **{heal}** can kazandı!"
+
+        elif action == "seddi":
+            actor["shield"] = True
+            log = (
+                f"🧱 {actor['member'].mention} Çin Seddi'ni ördü! "
+                "Bir sonraki saldırıdan daha az hasar alacak."
+            )
+
+        elif action == "
