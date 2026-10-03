@@ -20,7 +20,10 @@ bot = commands.Bot(
 
 bot.remove_command("help")
 
-OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
+GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+
 OWNER_ID = 1358430002508726276
 
 current_mode = "normal"
@@ -36,32 +39,41 @@ mode_prompts = {
 
 def get_ai_response(user_message):
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json"
     }
 
     data = {
-        "model": "openrouter/free",
+        "model": GROQ_MODEL,
         "messages": [
             {"role": "system", "content": mode_prompts[current_mode]},
             {"role": "user", "content": user_message}
         ]
     }
 
-    response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers=headers,
-        json=data
-    )
+    try:
+        response = requests.post(
+            GROQ_URL,
+            headers=headers,
+            json=data,
+            timeout=25  # Discord'un bağlantısını kilitlememesi için üst sınır
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"API İSTEK HATASI: {e}")
+        return "Şu an cevap veremiyorum, Groq'a ulaşılamadı. Birazdan tekrar dene."
 
-    result = response.json()
+    try:
+        result = response.json()
+    except ValueError:
+        print(f"API JSON HATASI: {response.text[:300]}")
+        return "Şu an cevap veremiyorum, API'den beklenmedik bir yanıt geldi."
 
-    if "choices" in result:
+    try:
         return result["choices"][0]["message"]["content"]
-
-    print(f"API HATASI: {result}")
-
-    return f"Bir hata oluştu: {result.get('error', {}).get('message', 'Bilinmeyen hata')}"
+    except (KeyError, IndexError):
+        print(f"API HATASI: {result}")
+        hata = result.get("error", {}).get("message", "Bilinmeyen hata")
+        return f"Bir hata oluştu: {hata}"
 
 
 # AKTİFLİK SİSTEMİ
@@ -727,272 +739,4 @@ class DuelGameView(discord.ui.View):
                 target["hp"] = max(0, target["hp"] - dmg)
                 log = (
                     f"💀 {actor['member'].mention}, ULTRA PEZEVENG PİÇİ ile "
-                    f"{target['member'].mention}'e **{dmg}** hasar verdi!{blocked}"
-                )
-
-        elif action == "can":
-            heal = random.randint(30, 100)
-            actor["hp"] = min(DUEL_MAX_HP, actor["hp"] + heal)
-            log = f"💗 {actor['member'].mention}, purnacı kalbiyle **{heal}** can kazandı!"
-
-        elif action == "seddi":
-            actor["shield"] = True
-            log = (
-                f"🧱 {actor['member'].mention} Çin Seddi'ni ördü! "
-                "Bir sonraki saldırıdan daha az hasar alacak."
-            )
-
-        elif action == "pes":
-            await self.end_duel(
-                interaction, target_id, actor_id,
-                f"🏳️ {actor['member'].mention} pes etti!"
-            )
-            return
-
-        if target["hp"] <= 0:
-            await self.end_duel(
-                interaction, actor_id, target_id,
-                f"{log}\n\n{target['member'].mention} yenildi!"
-            )
-            return
-
-        self.turn_index = 1 - self.turn_index
-        embed = self.build_embed(log)
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    async def on_timeout(self):
-        active_duels.pop(self.channel_id, None)
-
-        for item in self.children:
-            item.disabled = True
-
-    @discord.ui.button(label="👡 Anne Terliği", style=discord.ButtonStyle.danger, row=0)
-    async def terlik(self, interaction, button):
-        await self.resolve(interaction, "terlik")
-
-    @discord.ui.button(label="🔋 Topla", style=discord.ButtonStyle.secondary, row=0)
-    async def topla(self, interaction, button):
-        await self.resolve(interaction, "topla")
-
-    @discord.ui.button(label="💀 Ultra Pezeveng Piçi", style=discord.ButtonStyle.danger, row=0)
-    async def ultra(self, interaction, button):
-        await self.resolve(interaction, "ultra")
-
-    @discord.ui.button(label="💗 Purnacı Kalbi", style=discord.ButtonStyle.success, row=1)
-    async def can(self, interaction, button):
-        await self.resolve(interaction, "can")
-
-    @discord.ui.button(label="🧱 Çin Seddi", style=discord.ButtonStyle.primary, row=1)
-    async def seddi(self, interaction, button):
-        await self.resolve(interaction, "seddi")
-
-    @discord.ui.button(label="🏳️ Pes Et", style=discord.ButtonStyle.secondary, row=1)
-    async def pes(self, interaction, button):
-        await self.resolve(interaction, "pes")
-
-
-class DuelInviteView(discord.ui.View):
-    def __init__(self, challenger, opponent):
-        super().__init__(timeout=30)
-
-        self.challenger = challenger
-        self.opponent = opponent
-
-    @discord.ui.button(label="Kabul Et", style=discord.ButtonStyle.success)
-    async def accept(self, interaction, button):
-        if interaction.user.id != self.opponent.id:
-            await interaction.response.send_message(
-                "Bu daveti sadece etiketlenen oyuncu kabul edebilir",
-                ephemeral=True
-            )
-            return
-
-        game_view = DuelGameView(
-            self.challenger, self.opponent, interaction.channel.id
-        )
-        active_duels[interaction.channel.id] = game_view
-
-        embed = game_view.build_embed("Düello başladı!")
-        await interaction.response.edit_message(
-            content=None, embed=embed, view=game_view
-        )
-
-        self.stop()
-
-    @discord.ui.button(label="Reddet", style=discord.ButtonStyle.danger)
-    async def decline(self, interaction, button):
-        if interaction.user.id != self.opponent.id:
-            await interaction.response.send_message(
-                "Bu daveti sadece etiketlenen oyuncu reddedebilir",
-                ephemeral=True
-            )
-            return
-
-        await interaction.response.edit_message(
-            content=f"{self.opponent.mention} daveti reddetti.",
-            view=None
-        )
-
-        self.stop()
-
-    async def on_timeout(self):
-        pass
-
-
-@bot.command(name="1vs1")
-async def duel_command(ctx, oyuncu: discord.Member = None):
-    if oyuncu is None:
-        await ctx.send(
-            "Bir oyuncuyu etiketlemelisin. Örnek: `B!1vs1 @oyuncu`"
-        )
-        return
-
-    if oyuncu.bot:
-        await ctx.send("Bir bot ile düello yapamazsın.")
-        return
-
-    if oyuncu.id == ctx.author.id:
-        await ctx.send("Kendinle düello yapamazsın.")
-        return
-
-    if ctx.channel.id in active_duels:
-        await ctx.send("Bu kanalda zaten aktif bir düello var, önce o bitsin.")
-        return
-
-    view = DuelInviteView(ctx.author, oyuncu)
-
-    await ctx.send(
-        f"{oyuncu.mention}\n\n"
-        f"{ctx.author.mention} seni düelloya davet ediyor!",
-        view=view
-    )
-
-
-# YARDIM
-
-@bot.command(
-    name="yardim",
-    aliases=["help", "yardım"]
-)
-async def yardim_command(ctx):
-    embed = discord.Embed(
-        title="📖 Piçlik Komutları",
-        color=discord.Color.green()
-    )
-
-    embed.add_field(
-        name="!merhaba",
-        value="Botun çalıştığını test et",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!mod <isim>",
-        value="Botun konuşma tarzını değiştir (normal, komik, ciddi, korkutucu, tartışmacı)",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!soru <soru metni>",
-        value="Sihirli Paklava'ya bir soru sor",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!aktiflik",
-        value="Sunucudaki en aktif üyeleri gör (7/30/60/90 gün)",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!öneri <öneri metni>",
-        value="Bota bir öneri gönder",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!tkm @oyuncu",
-        value="Bir oyuncuya Taş Kağıt Makas düellosu gönder",
-        inline=False
-    )
-
-    embed.add_field(
-        name="!1vs1 @oyuncu",
-        value=(
-            "Bir oyuncuyla can/hasar tabanlı düello yap "
-            "(Anne Terliği, Ultra Pezeveng Piçi, Topla, Purnacı Kalbi, Çin Seddi, Pes Et)"
-        ),
-        inline=False
-    )
-
-    embed.add_field(
-        name="!help",
-        value="Bu mesajı gösterir",
-        inline=False
-    )
-
-    embed.add_field(
-        name="Sohbet",
-        value="Beni etiketleyerek veya mesajıma reply atarak benimle sohbet edebilirsin",
-        inline=False
-    )
-
-    embed.set_author(
-        name=bot.user.name,
-        icon_url=bot.user.display_avatar.url
-    )
-
-    await ctx.send(embed=embed)
-
-
-# AI SOHBETİ
-
-@bot.event
-async def on_message(message):
-    if message.author == bot.user:
-        return
-
-    await bot.process_commands(message)
-
-    is_mentioned = bot.user in message.mentions
-
-    is_reply_to_bot = False
-
-    if message.reference:
-        try:
-            replied_msg = await message.channel.fetch_message(
-                message.reference.message_id
-            )
-
-            if replied_msg.author == bot.user:
-                is_reply_to_bot = True
-
-        except:
-            pass
-
-    if is_mentioned or is_reply_to_bot:
-        if not message.content.startswith("!"):
-            clean_content = message.content.replace(
-                f"<@{bot.user.id}>",
-                ""
-            ).strip()
-
-            has_attachment = len(message.attachments) > 0
-
-            if clean_content:
-                async with message.channel.typing():
-                    cevap = get_ai_response(clean_content)
-                    await message.reply(cevap)
-
-            elif has_attachment:
-                async with message.channel.typing():
-                    cevap = get_ai_response(
-                        "Kullanıcı sana bir resim veya gif gönderdi ama yazı yazmadı. "
-                        "Buna kısa doğal bir tepki ver ve görseli gerçekten göremediğini belirt."
-                    )
-
-                    await message.reply(cevap)
-
-
-keep_alive()
-bot.run(os.environ["DISCORD_TOKEN"])
+                    f"{target['member'].mention}'e 
