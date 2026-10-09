@@ -1,9 +1,11 @@
+import io
+import math
 import os
 import random
 import sqlite3
 import time
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import requests
 
@@ -154,7 +156,7 @@ async def on_presence_update(before, after):
     stop_tracking(guild_id, user_id)
 
 
-# GİRİŞ VE ÇIKIŞ OLAYLARI
+# GİRİŞ VE ÇIKIŞ OLAYLARI (RESİMLİ KART SİSTEMİ)
 
 
 @bot.event
@@ -168,8 +170,20 @@ async def on_member_join(member):
     channel = member.guild.get_channel(row[0])
     if channel:
       uye_sayisi = member.guild.member_count
-      mesaj = f"Vay hoşgeldin @{member.name}! seninle beraber artık {uye_sayisi} kişiyiz"
-      await channel.send(mesaj)
+      
+      # Pillow ile karşılama görseli oluşturma
+      img = Image.new("RGB", (600, 250), color=(54, 57, 63))
+      d = ImageDraw.Draw(img)
+      
+      d.text((40, 50), f"Vay hosgeldin @{member.name}!", fill=(255, 255, 255))
+      d.text((40, 120), f"Seninle beraber artik {uye_sayisi} kisiyiz!", fill=(114, 137, 218))
+      
+      buffer = io.BytesIO()
+      img.save(buffer, format="PNG")
+      buffer.seek(0)
+      
+      file = discord.File(buffer, filename="hosgeldin.png")
+      await channel.send(file=file)
 
 
 @bot.event
@@ -183,8 +197,20 @@ async def on_member_remove(member):
     channel = member.guild.get_channel(row[0])
     if channel:
       uye_sayisi = member.guild.member_count
-      mesaj = f"Hoşçakal {member.name}!\n#{uye_sayisi}"
-      await channel.send(mesaj)
+      
+      # Pillow ile uğurlama görseli oluşturma
+      img = Image.new("RGB", (600, 250), color=(40, 43, 48))
+      d = ImageDraw.Draw(img)
+      
+      d.text((40, 60), f"Hoscakal {member.name}!", fill=(255, 100, 100))
+      d.text((40, 130), f"#{uye_sayisi}", fill=(200, 200, 200))
+      
+      buffer = io.BytesIO()
+      img.save(buffer, format="PNG")
+      buffer.seek(0)
+      
+      file = discord.File(buffer, filename="hoscakal.png")
+      await channel.send(file=file)
 
 
 @bot.command(name="gelengiden")
@@ -683,6 +709,28 @@ class DuelGameView(discord.ui.View):
           blocked = " (Çin Seddi hasarı azalttı!)"
         actor["power"] = 0
         target["hp"] = max(0, target["hp"] - dmg)
+        log= (
+          f"👡 {actor['member'].mention}, {target['member'].mention}'e anne"
+          f" terliğiyle **{dmg}** hasar verdi!{blocked}"
+      )
+
+    elif action == "topla":
+      gain = random.randint(30, 60)
+      actor["power"] = min(DUEL_ULTRA_COST, actor["power"] + gain)
+      log = f"🔋 {actor['member'].mention} güç topladı! (+{gain} güç)"
+
+    elif action == "ultra":
+      if actor["power"] < DUEL_ULTRA_COST:
+        log = f"❌ {actor['member'].mention}, yeterli gücün yok, git topla."
+      else:
+        dmg = random.randint(200, 300)
+        blocked = ""
+        if target["shield"]:
+          dmg = round(dmg * 0.4)
+          target["shield"] = False
+          blocked = " (Çin Seddi hasarı azalttı!)"
+        actor["power"] = 0
+        target["hp"] = max(0, target["hp"] - dmg)
         log = (
             f"💥 {actor['member'].mention}, ULTRA PATLATTI!"
             f" {target['member'].mention}'e **{dmg}** hasar verdi!{blocked}"
@@ -704,7 +752,7 @@ class DuelGameView(discord.ui.View):
       return
 
     self.turn_index = 1 if self.turn_index == 0 else 0
-    embed = self.build_embed(log_line=log)
+    embed = self.build_embed(log_link=log if 'log_link' in locals() else log)
     await interaction.response.edit_message(embed=embed, view=self)
 
   @discord.ui.button(
@@ -775,4 +823,3 @@ async def yardim(ctx):
 
 
 bot.run(os.environ["DISCORD_TOKEN"])
-
