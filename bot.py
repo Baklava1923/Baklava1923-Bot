@@ -4,11 +4,8 @@ import os
 import random
 import sqlite3
 import time
-import io
-import math
 from keep_alive import keep_alive
 import requests
-from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -90,13 +87,6 @@ CREATE TABLE IF NOT EXISTS activity (
     user_id INTEGER,
     start_time REAL,
     end_time REAL
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS welcome_config (
-    guild_id INTEGER PRIMARY KEY,
-    channel_id INTEGER
 )
 """)
 
@@ -746,4 +736,71 @@ class DuelGameView(discord.ui.View):
                     blocked = " (Çin Seddi hasarı azalttı!)"
 
                 actor["power"] = 0
-       
+                target["hp"] = max(0, target["hp"] - dmg)
+                log = (
+                    f"💀 {actor['member'].mention}, ULTRA PEZEVENG PİÇİ ile "
+                    f"{target['member'].mention}'e 
+
+                # --- GİRİŞ ÇIKIŞ SİSTEMİ BAŞLANGICI ---
+
+# Veritabanı tablosu kontrolü (Yoksa oluşturur)
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS welcome_config (
+    guild_id INTEGER PRIMARY KEY,
+    channel_id INTEGER
+)
+""")
+db.commit()
+
+
+@bot.event
+async def on_member_join(member):
+  cursor.execute(
+      "SELECT channel_id FROM welcome_config WHERE guild_id = ?",
+      (member.guild.id,),
+  )
+  row = cursor.fetchone()
+  if row:
+    channel = member.guild.get_channel(row[0])
+    if channel:
+      uye_sayisi = member.guild.member_count
+      # Giriş mesajı formatı
+      mesaj = f"Vay hoşgeldin @{member.name}! seninle beraber artık {uye_sayisi} kişiyiz"
+      await channel.send(mesaj)
+
+
+@bot.event
+async def on_member_remove(member):
+  cursor.execute(
+      "SELECT channel_id FROM welcome_config WHERE guild_id = ?",
+      (member.guild.id,),
+  )
+  row = cursor.fetchone()
+  if row:
+    channel = member.guild.get_channel(row[0])
+    if channel:
+      uye_sayisi = member.guild.member_count
+      # Çıkış mesajı formatı
+      mesaj = f"Hoşçakal {member.name}!\n#{uye_sayisi}"
+      await channel.send(mesaj)
+
+
+@bot.command(name="gelengiden")
+async def gelengiden(ctx, kanal: discord.TextChannel = None):
+  if kanal is None:
+    await ctx.send(
+        "Bir kanal etiketlemelisin! Örnek: `!gelengiden #hosgeldin-gorusuruz`"
+    )
+    return
+
+  cursor.execute(
+      "INSERT OR REPLACE INTO welcome_config (guild_id, channel_id) VALUES (?,"
+      " ?)",
+      (ctx.guild.id, kanal.id),
+  )
+  db.commit()
+  await ctx.send(
+      f"Gelen-giden mesaj kanalı başarıyla {kanal.mention} olarak ayarlandı! ✅"
+  )
+
+# --- GİRİŞ ÇIKIŞ SİSTEMİ BİTİŞİ ---
