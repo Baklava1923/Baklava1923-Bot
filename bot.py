@@ -4,8 +4,11 @@ import os
 import random
 import sqlite3
 import time
+import io
+import math
 from keep_alive import keep_alive
 import requests
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -87,6 +90,13 @@ CREATE TABLE IF NOT EXISTS activity (
     user_id INTEGER,
     start_time REAL,
     end_time REAL
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS welcome_config (
+    guild_id INTEGER PRIMARY KEY,
+    channel_id INTEGER
 )
 """)
 
@@ -736,7 +746,4 @@ class DuelGameView(discord.ui.View):
                     blocked = " (Çin Seddi hasarı azalttı!)"
 
                 actor["power"] = 0
-                target["hp"] = max(0, target["hp"] - dmg)
-                log = (
-                    f"💀 {actor['member'].mention}, ULTRA PEZEVENG PİÇİ ile "
-                    f"{target['member'].mention}'e 
+       
