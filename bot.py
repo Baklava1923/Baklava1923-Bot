@@ -774,4 +774,5 @@ async def yardim(ctx):
   await ctx.send(embed=embed)
 
 
-bot.run("TOKEN_BURAYA")
+bot.run(os.environ["DISCORD_TOKEN"])
+
