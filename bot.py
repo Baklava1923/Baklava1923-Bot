@@ -1,13 +1,11 @@
-import io
-import math
 import os
 import random
 import sqlite3
 import time
-from keep_alive import keep_alive
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+import requests
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -22,7 +20,7 @@ bot = commands.Bot(
 
 bot.remove_command("help")
 
-GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "BURAYA_API_KEY")
 GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
@@ -156,7 +154,7 @@ async def on_presence_update(before, after):
     stop_tracking(guild_id, user_id)
 
 
-# GİRİŞ VE ÇIKIŞ OLAYLARI (İstediğin Format)
+# GİRİŞ VE ÇIKIŞ OLAYLARI
 
 
 @bot.event
@@ -712,4 +710,68 @@ class DuelGameView(discord.ui.View):
   @discord.ui.button(
       label="Terlik Vur (50-99 Hasar)", style=discord.ButtonStyle.danger
   )
- 
+  async def btn_terlik(self, interaction, button):
+    await self.resolve(interaction, "terlik")
+
+  @discord.ui.button(
+      label="Güç Topla (+30-60)", style=discord.ButtonStyle.primary
+  )
+  async def btn_topla(self, interaction, button):
+    await self.resolve(interaction, "topla")
+
+  @discord.ui.button(
+      label="ULTRA GÜÇ (100 Güç)", style=discord.ButtonStyle.success
+  )
+  async def btn_ultra(self, interaction, button):
+    await self.resolve(interaction, "ultra")
+
+  @discord.ui.button(
+      label="Çin Seddi (Kalkan)", style=discord.ButtonStyle.secondary
+  )
+  async def btn_seddi(self, interaction, button):
+    await self.resolve(interaction, "cin_seddi")
+
+
+@bot.command(name="düello")
+async def duello(ctx, oyuncu: discord.Member = None):
+  if oyuncu is None:
+    await ctx.send("Düello etmek istediğin kişiyi etiketlemelisin! `!düello @oyuncu`")
+    return
+  if oyuncu.bot or oyuncu.id == ctx.author.id:
+    await ctx.send("Kendinle veya botlarla düello yapamazsın!")
+    return
+
+  channel_id = ctx.channel.id
+  if channel_id in active_duels:
+    await ctx.send("Bu kanalda zaten devam eden bir düello var!")
+    return
+
+  view = DuelGameView(ctx.author, oyuncu, channel_id)
+  active_duels[channel_id] = view
+  embed = view.build_embed(
+      log_line=f"⚔️ {ctx.author.mention} ve {oyuncu.mention} düelloya başladı!"
+  )
+  await ctx.send(embed=embed, view=view)
+
+
+@bot.command(name="yardım")
+async def yardim(ctx):
+  embed = discord.Embed(
+      title="🤖 Bot Komutları",
+      description="Kullanım: `!`, `B!`, `b!`",
+      color=discord.Color.brand_green(),
+  )
+  embed.add_field(
+      name="Komutlar",
+      value=(
+          "`!merhaba` - Test\n`!mod <mod>` - AI modu\n`!soru <soru>` - Sihirli"
+          " Paklava\n`!öneri <öneri>` - Öneri ilet\n`!gelengiden #kanal` -"
+          " Giriş çıkış ayarla\n`!aktiflik` - Aktiflik tablosu\n`!tkm @oyuncu` -"
+          " Taş Kağıt Makas\n`!düello @oyuncu` - 1vs1 Düello"
+      ),
+      inline=False,
+  )
+  await ctx.send(embed=embed)
+
+
+bot.run("TOKEN_BURAYA")
